@@ -67,6 +67,7 @@ class Crawler:
 
     def _get_next_url(self):
         lines = self._io_handler.read_queue()
+        found_line = None
 
         for i in range(len(lines)-1, -1, -1):
             allow_crawl = self._get_allow_crawl(lines[i])
@@ -74,10 +75,11 @@ class Crawler:
             if allow_crawl == "-1":
                 lines.pop(i)
             if allow_crawl == "1":
-                return lines.pop(i)
+                found_line = lines.pop(i)
+                break
 
         self._io_handler.set_queue(lines)
-        return None
+        return found_line
 
 
     def _get_domain(self,url):
