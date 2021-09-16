@@ -28,7 +28,6 @@ class Crawler:
 
     def crawl(self):
         while True:
-
             url = self._get_next_url()
             if url == None:
                 time.sleep(0.1)
@@ -40,6 +39,7 @@ class Crawler:
                 r = requests.get(url)
             except:
                 continue
+                
             self._record_visit(url)
             r_parse = BeautifulSoup(r.text, 'html.parser')
             r_title = r_parse.find('title')
