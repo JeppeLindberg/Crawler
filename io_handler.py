@@ -43,11 +43,11 @@ class IOHandler:
         raise NotImplementedError()
 
 
-    def add_to_pages(self, url_title):
+    def add_to_pages(self, url, title):
         raise NotImplementedError()
 
 
-    def read_pages(self) -> []:
+    def count_pages(self) -> []:
         raise NotImplementedError()
         return None
 

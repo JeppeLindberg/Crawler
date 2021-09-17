@@ -25,13 +25,22 @@ class Scheduler:
             time.sleep(2.0)
 
 
+    def _stop_threads(self):
+        for c in self._crawlers:
+            c.stop_crawl()
+
+
     def run(self):
         self._progress.acquire()
         self._start_threads()
         self._progress.release()
 
         while True:
-            time.sleep(0.1)
+            try:
+                time.sleep(1)
+            except KeyboardInterrupt:
+                self._stop_threads()
+
             self._progress.acquire()
             if self.all_terminated():
                 break

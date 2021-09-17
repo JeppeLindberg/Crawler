@@ -39,8 +39,7 @@ class FileHandler(IOHandler):
 
         with FileLock(f"{self._pages_file}.lock"):
             if not os.path.exists(self._pages_file):
-                f = open(self._pages_file, "xb")
-                pickle.dump(self._cache, f)
+                f = open(self._pages_file, "x")
                 f.close()
 
 
@@ -111,14 +110,14 @@ class FileHandler(IOHandler):
             f.close()
 
 
-    def add_to_pages(self, url_title):
+    def add_to_pages(self, url, title):
         with FileLock(f"{self._pages_file}.lock"):
             f = open(self._pages_file, "a", encoding="utf-8")
-            f.write(url_title + "\n")
+            f.write("[" + url + "] " + title + "\n")
             f.close()
 
 
-    def read_pages(self) -> []:
+    def count_pages(self) -> []:
         with FileLock(f"{self._pages_file}.lock"):
             f = open(self._pages_file, "r", encoding="utf-8")
             lines = f.readlines()

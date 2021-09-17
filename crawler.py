@@ -20,47 +20,56 @@ class Crawler:
         self._io_handler = SQLHandler(index)
         self._rp = RobotFileParser()
 
+        self._stop_crawl = False
+
 
     def crawl(self):
+        print(f"Crawler {self._index} started")
+
         while True:
             url = self._get_next_url()
             if url == None:
-                time.sleep(2.0)
+                time.sleep(0.1)
                 continue
 
-            try:
-                r = requests.get(url)
-            except:
-                continue
-                
-            self._record_visit(url)
-            r_parse = BeautifulSoup(r.text, 'html.parser')
-            r_title = r_parse.find('title')
-            if r_title == None:
-                continue
-
-            r_title_string = r_title.string
-            if r_title_string is None:
-                continue
-
-            self._add_links_to_queue(r_parse)
-
-            url_title = ("[" + url + "] " + r_title_string).replace("\n", "")
-            self._io_handler.add_to_pages(url_title)
-            print(url_title)
+            self._process_url(url)
 
             self._io_handler.dump()
 
             if self._check_stop_crawling():
-                print("Crawl finished!")
-                return
+                break
 
-            time.sleep(2.0)
+        print(f"Crawler {self._index} terminated")
+
+
+    def stop_crawl(self):
+        self._stop_crawl = True
+
+
+    def _process_url(self, url):
+        self._record_visit(url)
+        print(f"[{url}]")
+
+        try:
+            r = requests.get(url)
+        except:
+            return
+        r_parse = BeautifulSoup(r.text, 'html.parser')
+
+        title = None
+        r_title = r_parse.find('title')
+        if r_title is not None:
+            r_title_string = r_title.string
+            if r_title_string is not None:
+                title = r_title_string.replace("\n", "")
+                
+        self._io_handler.add_to_pages(url, title)
+
+        self._add_links_to_queue(r_parse)
 
 
     def _get_next_url(self):
         lines = self._io_handler.read_queue()
-        found_line = None
 
         for line in lines:
             allow_crawl = self._get_allow_crawl(line)
@@ -77,9 +86,9 @@ class Crawler:
     def _add_links_to_queue(self, r_parse):
         urls = [a.get('href') for a in r_parse.find_all('a')]
         urls = [u for u in urls if (u is not None) and (validators.url(u))]
+        urls = [u.split('?')[0] for u in urls]
 
-        for url in urls:
-            self._io_handler.add_to_queue(url)
+        self._io_handler.add_to_queue(urls)
 
 
     def _get_domain(self,url):
@@ -90,31 +99,28 @@ class Crawler:
         return domain
 
 
-    def _get_allow_crawl(self,url):
+    def _get_allow_crawl(self, url):
         cache_data = self._io_handler.read_cache(self._get_domain(url))
-        allow_delay = False
 
         if cache_data.cache_hit:
-            allow_delay = time.time() > cache_data.last_visited + cache_data.crawl_delay
-            
-        self._rp.set_url(url)
-        try:
-            self._rp.read()
-            if not self._rp.can_fetch(self._useragent,url):
+            if time.time() > cache_data.last_visited + cache_data.crawl_delay:
+                return 1
+        else:
+            self._rp.set_url(url)
+            try:
+                self._rp.read()
+                if not self._rp.can_fetch(self._useragent,url):
+                    return -1
+            except:
                 return -1
-        except:
-            return -1
 
-        if not cache_data.cache_hit:
             crawl_delay = self._rp.crawl_delay(self._useragent)
             if crawl_delay == None:
                 crawl_delay = 5
 
-            self._io_handler.write_cache(self._get_domain(url), 0, crawl_delay)
-            allow_delay = False
+            self._io_handler.write_cache(self._get_domain(url), time.time(), crawl_delay)
+            return 0
         
-        if allow_delay == True:
-            return 1
         return 0
 
 
@@ -123,4 +129,4 @@ class Crawler:
 
 
     def _check_stop_crawling(self):
-        return len(self._io_handler.read_pages()) >= 1000
+        return self._stop_crawl or (self._io_handler.count_pages() >= 1000)
