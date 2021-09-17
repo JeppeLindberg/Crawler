@@ -179,7 +179,7 @@ class SQLHandler(IOHandler):
         if title is None:
             title = "NULL"
         else:
-            title = "\"" + title "\""
+            title = "\"" + title + "\""
 
         self._connection = sqlite3.connect(self._database_file)
         self._cursor = self._connection.cursor()
