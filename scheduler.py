@@ -13,13 +13,17 @@ class Scheduler:
         for index in range(0, number_of_threads):
             self._crawlers.append(Crawler(index))
             self._threads.append(threading.Thread(target=self._run_thread, args=[index]))
+            
 
     def _run_thread(self, index: int):
         self._crawlers[index].crawl()
 
+
     def _start_threads(self):
         for thread in self._threads:
             thread.start()
+            time.sleep(1.0)
+
 
     def run(self):
         self._progress.acquire()
@@ -32,10 +36,12 @@ class Scheduler:
             if self.all_terminated():
                 break
             self._progress.release()
+
         for t in self._threads:
             t.join()
 
         print("All threads terminated")
+
 
     def all_terminated(self) -> bool:
         for index in range(0, len(self._crawlers)):

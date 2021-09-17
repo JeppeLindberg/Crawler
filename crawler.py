@@ -21,7 +21,6 @@ class Crawler:
 
         self._base_folder = "C:\\Users\\Jeppe\\Documents\\Python\\Crawler"
         self._pages = self._base_folder + "\\pages.txt"
-        self._already_visited = self._base_folder + "\\already_visited.txt"
 
         self._rp = RobotFileParser()
 
@@ -72,9 +71,9 @@ class Crawler:
         for i in range(len(lines)-1, -1, -1):
             allow_crawl = self._get_allow_crawl(lines[i])
 
-            if allow_crawl == "-1":
+            if allow_crawl == -1:
                 lines.pop(i)
-            if allow_crawl == "1":
+            if allow_crawl == 1:
                 found_line = lines.pop(i)
                 break
 
@@ -101,9 +100,9 @@ class Crawler:
         try:
             self._rp.read()
             if not self._rp.can_fetch(self._useragent,url):
-                return "-1"
+                return -1
         except:
-            return "-1"
+            return -1
 
         if not cache_data.cache_hit:
             crawl_delay = self._rp.crawl_delay(self._useragent)
@@ -114,8 +113,8 @@ class Crawler:
             allow_delay = False
         
         if allow_delay == True:
-            return "1"
-        return "0"
+            return 1
+        return 0
 
 
     def _record_visit(self,url):
@@ -127,7 +126,7 @@ class Crawler:
         lines = f.readlines()
         f.close()
 
-        return len(lines) >= 10:
+        return len(lines) >= 10
 
 
     def _append_to_file(self,file_path, string):

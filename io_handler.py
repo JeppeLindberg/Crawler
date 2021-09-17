@@ -1,9 +1,10 @@
 import os
 import pickle
 
+from filelock import FileLock
+
 queue_file = "queue.dat"
 cache_file = "cache.dat"
-
 
 class CacheData:
     def __init__(self, cache_hit, last_visited, crawl_delay):
@@ -17,30 +18,27 @@ class IOHandler:
         self._index = index
 
         self._base_folder = os.path.dirname(os.path.abspath(__file__))
-        self._bin_path = f"{self._base_folder}\\bin\\{self._index}"
-        self._queue_file = f"{self._bin_path}\\{queue_file}"
+        self._bin_path = f"{self._base_folder}\\bin"
+        self._index_path = f"{self._bin_path}\\{self._index}"
+        self._queue_file = f"{self._index_path}\\{queue_file}"
         self._cache_file = f"{self._bin_path}\\{cache_file}"
 
         self._queue = ["https://www.aau.dk/"]
         self._cache = {}
 
-        if not os.path.exists(self._bin_path):
-            os.makedirs(self._bin_path)
+        if not os.path.exists(self._index_path):
+            os.makedirs(self._index_path)
 
         if not os.path.exists(self._queue_file):
             f = open(self._queue_file, "xb")
             pickle.dump(self._queue, f)
             f.close()
 
-        if not os.path.exists(self._cache_file):
-            f = open(self._cache_file, "xb")
-            pickle.dump(self._cache, f)
-            f.close()
-
-
-    def dump(self):
-        self._dump_queue()
-        self._dump_cache()
+        with FileLock(f"{self._cache_file}.lock"):
+            if not os.path.exists(self._cache_file):
+                f = open(self._cache_file, "xb")
+                pickle.dump(self._cache, f)
+                f.close()
 
 
     def read_queue(self) -> []:
@@ -60,14 +58,8 @@ class IOHandler:
         self._queue = lines
 
 
-    def _dump_queue(self):
-        f = open(self._queue_file, 'wb')
-        pickle.dump(self._queue, f)
-        f.close()
-
-
     def read_cache(self, url) -> CacheData:
-        if len(self._cache) == 0:
+        with FileLock(f"{self._cache_file}.lock"):
             f = open(self._cache_file, 'rb')
             self._cache = pickle.load(f)
             f.close()
@@ -83,16 +75,44 @@ class IOHandler:
                 last_visited = self._cache[url]["last_visited"]
             if "crawl_delay" in self._cache[url]:
                 crawl_delay = self._cache[url]["crawl_delay"]
-
         return CacheData(cache_hit, last_visited, crawl_delay)
 
 
     def write_cache(self, url, last_visited, crawl_delay):
-        self._cache[url] = {"last_visited": last_visited, "crawl_delay": crawl_delay}
+        with FileLock(f"{self._cache_file}.lock"):
+            f = open(self._cache_file, 'rb')
+            self._cache = pickle.load(f)
+            f.close()
+
+            self._cache[url] = {"last_visited": last_visited, "crawl_delay": crawl_delay}
+            
+            f = open(self._cache_file, 'wb')
+            pickle.dump(self._cache, f)
+            f.close()
 
     
     def record_visit_in_cache(self, url, last_visited):
-        self._cache[url]["last_visited"] = last_visited
+        with FileLock(f"{self._cache_file}.lock"):
+            f = open(self._cache_file, 'rb')
+            self._cache = pickle.load(f)
+            f.close()
+
+            self._cache[url]["last_visited"] = last_visited
+            
+            f = open(self._cache_file, 'wb')
+            pickle.dump(self._cache, f)
+            f.close()
+
+
+    def dump(self):
+        self._dump_queue()
+        #self._dump_cache()
+
+
+    def _dump_queue(self):
+        f = open(self._queue_file, 'wb')
+        pickle.dump(self._queue, f)
+        f.close()
 
 
     def _dump_cache(self):
