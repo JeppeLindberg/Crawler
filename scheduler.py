@@ -22,7 +22,7 @@ class Scheduler:
     def _start_threads(self):
         for thread in self._threads:
             thread.start()
-            time.sleep(1.0)
+            time.sleep(2.0)
 
 
     def run(self):

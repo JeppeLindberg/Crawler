@@ -7,21 +7,17 @@ from urllib.robotparser import RobotFileParser
 from urllib.parse import urlparse
 from urllib.error import URLError
 
-from io_handler import IOHandler
+from file_io_handler import FileHandler
+from sql_io_handler import SQLHandler
 from io_handler import CacheData
 
 
 class Crawler:
     def __init__(self, index):
         self._index = index
-
-        self._io_handler = IOHandler(index)
-
         self._useragent = "jwli"
 
-        self._base_folder = "C:\\Users\\Jeppe\\Documents\\Python\\Crawler"
-        self._pages = self._base_folder + "\\pages.txt"
-
+        self._io_handler = SQLHandler(index)
         self._rp = RobotFileParser()
 
 
@@ -29,10 +25,8 @@ class Crawler:
         while True:
             url = self._get_next_url()
             if url == None:
-                time.sleep(0.1)
+                time.sleep(2.0)
                 continue
-
-            time.sleep(0.01)
 
             try:
                 r = requests.get(url)
@@ -46,39 +40,46 @@ class Crawler:
                 continue
 
             r_title_string = r_title.string
+            if r_title_string is None:
+                continue
 
-            for a in r_parse.find_all('a'):
-                try:
-                    self._io_handler.add_to_queue(a['href'])
-                except KeyError:
-                    __ = False
+            self._add_links_to_queue(r_parse)
 
             url_title = ("[" + url + "] " + r_title_string).replace("\n", "")
-            self._append_to_file(self._pages, url_title)
+            self._io_handler.add_to_pages(url_title)
             print(url_title)
 
             self._io_handler.dump()
 
-            if self._stop_crawling():
+            if self._check_stop_crawling():
                 print("Crawl finished!")
                 return
+
+            time.sleep(2.0)
 
 
     def _get_next_url(self):
         lines = self._io_handler.read_queue()
         found_line = None
 
-        for i in range(len(lines)-1, -1, -1):
-            allow_crawl = self._get_allow_crawl(lines[i])
+        for line in lines:
+            allow_crawl = self._get_allow_crawl(line)
 
             if allow_crawl == -1:
-                lines.pop(i)
+                self._io_handler.erase_from_queue(line)
             if allow_crawl == 1:
-                found_line = lines.pop(i)
-                break
+                self._io_handler.erase_from_queue(line)
+                return line
 
-        self._io_handler.set_queue(lines)
-        return found_line
+        return None
+
+    
+    def _add_links_to_queue(self, r_parse):
+        urls = [a.get('href') for a in r_parse.find_all('a')]
+        urls = [u for u in urls if (u is not None) and (validators.url(u))]
+
+        for url in urls:
+            self._io_handler.add_to_queue(url)
 
 
     def _get_domain(self,url):
@@ -121,15 +122,5 @@ class Crawler:
         self._io_handler.record_visit_in_cache(self._get_domain(url), time.time())
 
 
-    def _stop_crawling(self):
-        f = open(self._pages, "r", encoding="utf-8")
-        lines = f.readlines()
-        f.close()
-
-        return len(lines) >= 10
-
-
-    def _append_to_file(self,file_path, string):
-        f = open(file_path, "a", encoding="utf-8")
-        f.write(string + "\n")
-        f.close()
+    def _check_stop_crawling(self):
+        return len(self._io_handler.read_pages()) >= 1000
