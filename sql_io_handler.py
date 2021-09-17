@@ -186,7 +186,7 @@ class SQLHandler(IOHandler):
 
         sql_command = f"""
         INSERT OR REPLACE INTO pages
-        VALUES ("{url}", "{title}");"""
+        VALUES ("{url}", {title});"""
         self._execute(sql_command)
 
         self._connection.commit()
