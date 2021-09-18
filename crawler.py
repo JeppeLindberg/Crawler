@@ -1,8 +1,6 @@
 import requests
 import time
-import validators
 
-from bs4 import BeautifulSoup
 from urllib.robotparser import RobotFileParser
 from urllib.parse import urlparse
 from urllib.error import URLError
@@ -10,6 +8,7 @@ from urllib.error import URLError
 from file_io_handler import FileHandler
 from sql_io_handler import SQLHandler
 from io_handler import CacheData
+from titles_request_processor import TitlesProcessor
 
 
 class Crawler:
@@ -19,6 +18,7 @@ class Crawler:
 
         self._io_handler = SQLHandler(index)
         self._rp = RobotFileParser()
+        self._request_processor = TitlesProcessor(self._io_handler)
 
         self._stop_crawl = False
 
@@ -39,6 +39,8 @@ class Crawler:
             if self._check_stop_crawling():
                 break
 
+            time.sleep(1.0)
+
         print(f"Crawler {self._index} terminated")
 
 
@@ -48,24 +50,13 @@ class Crawler:
 
     def _process_url(self, url):
         self._record_visit(url)
-        print(f"[{url}]")
 
         try:
-            r = requests.get(url)
+            req = requests.get(url)
         except:
             return
-        r_parse = BeautifulSoup(r.text, 'html.parser')
 
-        title = None
-        r_title = r_parse.find('title')
-        if r_title is not None:
-            r_title_string = r_title.string
-            if r_title_string is not None:
-                title = r_title_string.replace("\n", "")
-                
-        self._io_handler.add_to_pages(url, title)
-
-        self._add_links_to_queue(r_parse)
+        self._request_processor.process(req)
 
 
     def _get_next_url(self):
@@ -81,14 +72,6 @@ class Crawler:
                 return line
 
         return None
-
-    
-    def _add_links_to_queue(self, r_parse):
-        urls = [a.get('href') for a in r_parse.find_all('a')]
-        urls = [u for u in urls if (u is not None) and (validators.url(u))]
-        urls = [u.split('?')[0] for u in urls]
-
-        self._io_handler.add_to_queue(urls)
 
 
     def _get_domain(self,url):

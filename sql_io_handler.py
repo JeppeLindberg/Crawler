@@ -48,6 +48,12 @@ class SQLHandler(IOHandler):
 
                 self._connection.commit()
 
+            if self._index == 0:
+                sql_command =  f"""
+                UPDATE cache
+                SET last_visited = 0;"""
+                self._execute(sql_command)
+
             self._connection.close()
 
 
@@ -179,7 +185,7 @@ class SQLHandler(IOHandler):
         if title is None:
             title = "NULL"
         else:
-            title = "\"" + title + "\""
+            title = '"' + title.replace('"', "") + '"'
 
         self._connection = sqlite3.connect(self._database_file)
         self._cursor = self._connection.cursor()
